@@ -1,0 +1,11 @@
+C:\Dev\EnterpriseAiSaas\src\Domain\bin\Debug\net8.0\Domain.deps.json
+C:\Dev\EnterpriseAiSaas\src\Domain\bin\Debug\net8.0\Domain.dll
+C:\Dev\EnterpriseAiSaas\src\Domain\bin\Debug\net8.0\Domain.pdb
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\Domain.AssemblyInfoInputs.cache
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\Domain.AssemblyInfo.cs
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\Domain.csproj.CoreCompileInputs.cache
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\Domain.dll
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\refint\Domain.dll
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\Domain.pdb
+C:\Dev\EnterpriseAiSaas\src\Domain\obj\Debug\net8.0\ref\Domain.dll
