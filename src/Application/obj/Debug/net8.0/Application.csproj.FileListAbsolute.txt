@@ -13,3 +13,4 @@ C:\Dev\EnterpriseAiSaas\src\Application\obj\Debug\net8.0\Application.dll
 C:\Dev\EnterpriseAiSaas\src\Application\obj\Debug\net8.0\refint\Application.dll
 C:\Dev\EnterpriseAiSaas\src\Application\obj\Debug\net8.0\Application.pdb
 C:\Dev\EnterpriseAiSaas\src\Application\obj\Debug\net8.0\ref\Application.dll
+C:\Dev\EnterpriseAiSaas\src\Application\obj\Debug\net8.0\Application.sourcelink.json

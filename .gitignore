@@ -1,0 +1,30 @@
+# Build e output
+[Bb]in/
+[Oo]bj/
+*.dll
+*.pdb
+*.exe
+
+# Database SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# File caricati dagli utenti
+uploads/
+
+# Configurazioni sensibili (mai committare chiavi API!)
+appsettings.Development.json
+.env
+*.user
+
+# Node modules (per quando aggiungeremo il frontend)
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# VS Code
+.vscode/
+*.suo
+*.userosscache
+node_modules
