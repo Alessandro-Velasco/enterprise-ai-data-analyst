@@ -52,7 +52,6 @@ public class DataAnalysisService : IDataAnalysisService
         _context.Datasets.Add(dataset);
         await _context.SaveChangesAsync();
 
-        // Importa i dati CSV in una tabella SQLite dedicata
         await ImportCsvToSqliteAsync(dataset.Id, filePath, columns);
 
         return dataset;
@@ -65,7 +64,6 @@ public class DataAnalysisService : IDataAnalysisService
         using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
-        // Crea tabella dinamica con le colonne del CSV
         var columnDefs = string.Join(", ", columns.Select(c => $"\"{c.Name}\" TEXT"));
         var createTableSql = $"CREATE TABLE IF NOT EXISTS \"{tableName}\" ({columnDefs})";
         
@@ -75,7 +73,6 @@ public class DataAnalysisService : IDataAnalysisService
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // Leggi il CSV e inserisci i dati
         var lines = await File.ReadAllLinesAsync(filePath);
         if (lines.Length < 2) return;
 
@@ -115,19 +112,36 @@ public class DataAnalysisService : IDataAnalysisService
     public async Task<QueryResult> ExecuteNaturalQueryAsync(Guid datasetId, string userQuery)
     {
         var dataset = await GetDatasetSchemaAsync(datasetId);
+        var tableName = $"data_{dataset.Id:N}";
         
         var columns = JsonSerializer.Deserialize<List<DataColumn>>(dataset.ColumnsJson) ?? new List<DataColumn>();
-        var schema = $"Tabella: {dataset.Name}\nColonne:\n" + 
-                     string.Join("\n", columns.Select(c => $"- {c.Name} ({c.DataType})"));
+        
+        // PROMPT MIGLIORATO: Istruzioni severe per SQLite
+        var schema = $"IMPORTANTE: Usa SOLO sintassi SQLite. NON usare '::numeric', '::integer' o cast PostgreSQL. NON scrivere 'end SQL' o testo extra dopo la query.\n\n" +
+                     $"Nome tabella SQL da usare: {tableName}\n\n" +
+                     $"Colonne disponibili:\n" + 
+                     string.Join("\n", columns.Select(c => $"- {c.Name} (tipo TEXT)"));
         
         var generatedSQL = await _aiService.GenerateSQLFromNaturalLanguageAsync(userQuery, schema);
         
-        // Pulisci la query SQL usando Regex (infallibile contro i markdown)
+        // Pulizia aggressiva della query
         generatedSQL = CleanSqlQuery(generatedSQL);
-        
-        // Esegui la query SQL reale sui dati importati
-        var resultData = await ExecuteSqlOnDatasetAsync(datasetId, generatedSQL, columns);
-        
+        generatedSQL = NormalizeTableName(generatedSQL, tableName);
+        generatedSQL = RemovePostgresCast(generatedSQL);
+        generatedSQL = RemoveTrailingJunk(generatedSQL);
+
+        // Validazione di sicurezza: solo SELECT
+        if (Regex.IsMatch(generatedSQL, @"\b(DELETE|DROP|UPDATE|INSERT|ALTER|CREATE)\b", RegexOptions.IgnoreCase))
+        {
+            return new QueryResult {
+                Id = Guid.NewGuid(), DatasetId = datasetId, UserQuery = userQuery,
+                GeneratedSQL = generatedSQL, 
+                ResultJSON = JsonSerializer.Serialize(new[] { new { error = "Query non permessa: sono consentite solo query di lettura (SELECT)." } }),
+                VisualizationType = "table", ExecutedAt = DateTime.UtcNow
+            };
+        }
+
+        var resultData = await ExecuteSqlOnDatasetAsync(generatedSQL);
         var vizType = await _aiService.SuggestVisualizationAsync(userQuery, resultData);
 
         var queryResult = new QueryResult
@@ -146,32 +160,42 @@ public class DataAnalysisService : IDataAnalysisService
         return queryResult;
     }
 
-    // Metodo helper ROBUSTO per pulire la query SQL dai backticks markdown
+    // Rimuove blocchi markdown ```sql ... ```
     private string CleanSqlQuery(string sql)
     {
         if (string.IsNullOrEmpty(sql)) return sql;
-
-        // Usa Regex per estrarre solo il codice SQL dentro i blocchi ```sql ... ```
         var match = Regex.Match(sql, @"```(?:sql)?\s*(.*?)\s*```", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        if (match.Success)
-        {
-            return match.Groups[1].Value.Trim();
-        }
-
-        // Fallback: rimuove manualmente i backticks se la regex non trova il pattern completo
-        return sql.Replace("```sql", "", StringComparison.OrdinalIgnoreCase)
-                  .Replace("```", "")
-                  .Trim();
+        if (match.Success) return match.Groups[1].Value.Trim();
+        return sql.Replace("```sql", "", StringComparison.OrdinalIgnoreCase).Replace("```", "").Trim();
     }
 
-    private async Task<string> ExecuteSqlOnDatasetAsync(Guid datasetId, string sql, List<DataColumn> columns)
+    // Sostituisce nomi tabella inventati dall'AI
+    private string NormalizeTableName(string sql, string realTableName)
     {
-        var tableName = $"data_{datasetId:N}";
-        
-        // Sostituisci il nome tabella generico con quello reale (case-insensitive)
-        sql = sql.Replace("tabella", tableName, StringComparison.OrdinalIgnoreCase)
-                 .Replace("TABLE", tableName, StringComparison.OrdinalIgnoreCase);
+        return Regex.Replace(sql, @"\b(tabella|Table|TABLE|Data|data|Dataset|dataset|my_table)\b", realTableName, RegexOptions.IgnoreCase);
+    }
 
+    // Rimuove cast PostgreSQL come ::numeric, ::integer, ::text
+    private string RemovePostgresCast(string sql)
+    {
+        // Rimuove "::tipo" (es. ::numeric, ::integer, ::text, ::float)
+        return Regex.Replace(sql, @"::\w+", "", RegexOptions.IgnoreCase);
+    }
+
+    // Rimuove testo spazzolina alla fine come "end SQL;", "END", ecc.
+    private string RemoveTrailingJunk(string sql)
+    {
+        // Rimuove "end SQL;" o "END SQL" o simili alla fine
+        sql = Regex.Replace(sql, @"\bend\s+sql\b\s*;?\s*$", "", RegexOptions.IgnoreCase);
+        // Rimuove "END" da solo alla fine
+        sql = Regex.Replace(sql, @"\bEND\b\s*;?\s*$", "", RegexOptions.IgnoreCase);
+        // Rimuove punti e virgola multipli alla fine
+        sql = Regex.Replace(sql, @";+\s*$", ";", RegexOptions.IgnoreCase);
+        return sql.Trim();
+    }
+
+    private async Task<string> ExecuteSqlOnDatasetAsync(string sql)
+    {
         try
         {
             using var connection = new SqliteConnection(_connectionString);
