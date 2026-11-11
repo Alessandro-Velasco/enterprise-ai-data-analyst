@@ -23,4 +23,4 @@ A privacy-first, full-stack SaaS application that analyzes CSV data using natura
 
 ## 🎬 Demo Video
 
-[![Watch the demo](https://youtu.be/hyPqpU-1R6wP)
+(https://youtu.be/hyPqpU-1R6wP)
