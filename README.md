@@ -20,3 +20,7 @@ A privacy-first, full-stack SaaS application that analyzes CSV data using natura
 - 🎨 **Modern Dark UI** — Tailwind CSS with responsive design
 
 ## 🏗️ Architecture
+
+## 🎬 Demo Video
+
+[![Watch the demo](https://youtu.be/hyPqpU-1R6wP)
